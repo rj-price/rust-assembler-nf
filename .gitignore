@@ -1,0 +1,11 @@
+work/
+results/
+test_results/
+.nextflow/
+.nextflow.log*
+assets/samplesheet_test.csv
+*.sif
+__pycache__/
+*.pyc
+logs/
+.claude/

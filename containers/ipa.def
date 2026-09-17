@@ -1,0 +1,89 @@
+Bootstrap: docker
+From: mambaorg/micromamba:1.5.8
+
+#
+# IPA (Improved Phased Assembler) has biocontainers, and every one of them is broken.
+# All four builds of pbipa 1.8.0 on the Galaxy depot were tested on 2026-09-07:
+#
+#   1.8.0--hbd632db_0   busybox sort
+#   1.8.0--hbd632db_1   busybox sort, snakemake 7.3.2
+#   1.8.0--h6ead514_2   busybox sort, snakemake 7.26.0
+#   1.8.0--h1104d80_3   busybox sort, snakemake 8.25.5
+#
+# Two independent faults:
+#
+#   1. `sort`. The biocontainer base image provides BusyBox v1.32.1, whose sort has no
+#      --temporary-directory. ipa2-task's ovl_asym_run runs
+#          sort --temporary-directory=${params_tmp_dir} -k1 ovl.m4 > ovl.sorted.m4
+#      which dies with a BusyBox usage message. Confirmed by running the step by hand.
+#      BusyBox sort has no external-sort temp handling at all, so this cannot be shimmed
+#      away -- the overlap files are far too large to sort in memory.
+#
+#   2. snakemake. IPA's wrapper passes --reason, removed in snakemake 8. Build _3 dies at
+#      once with "unrecognized arguments: --reason". Hence the <8 pin below.
+#
+# A third fault appears only once (1) is fixed by moving off the busybox base: every
+# ipa2-task rule is invoked as
+#     params_foo="..." params_bar="..." time ipa2-task <task>
+# Because `time` is preceded by environment assignments, bash resolves it as an external
+# COMMAND, not as the shell keyword -- so /usr/bin/time must exist. Busybox supplied one;
+# Debian does not install it by default, and without it every rule dies at
+# "time: command not found" (exit 127). Hence the apt-get below. Do not drop it.
+#
+# The Debian base under micromamba gives GNU coreutils, which fixes (1); pinning snakemake
+# fixes (2). Same approach as containers/nuclearphaser.def, and for the same reason: the
+# stock biocontainer cannot do the job.
+#
+# IPA's last upstream commit is 2022-03-11 and PacBio has moved on, so this dependency rot
+# is expected to stay. Pin versions; do not float them.
+#
+# Build once, then point --ipa_sif at the result:
+#
+#     apptainer build ipa.sif containers/ipa.def
+#     nextflow run . -profile gruffalo --ipa_sif /path/to/ipa.sif ...
+#
+
+%environment
+    export PATH=/opt/conda/bin:$PATH
+    export LC_ALL=C
+
+%post
+    export PATH=/opt/conda/bin:$PATH
+
+    # /usr/bin/time -- see the note above. Not optional.
+    #
+    # procps is equally not optional, for a reason that has nothing to do with IPA. Every
+    # Nextflow task wrapper opens with, in .command.run's nxf_trace_linux:
+    #     command -v ps &>/dev/null || { >&2 echo "Command 'ps' required ..."; exit 1; }
+    # so a container without `ps` fails the task before .command.sh is ever sourced --
+    # exit 1, empty .command.out, and nothing in .command.err but that one line. Job
+    # 34058085's IPA task died exactly that way at 13:45 after a 2 h queue wait. Stock
+    # biocontainers carry procps as a matter of course; mambaorg/micromamba does not.
+    apt-get update
+    apt-get install -y --no-install-recommends time procps
+    rm -rf /var/lib/apt/lists/*
+
+    micromamba install -y -n base -c conda-forge -c bioconda \
+        python=3.9 \
+        'pbipa=1.8.0' \
+        'snakemake-minimal<8'
+
+    micromamba clean -a -y
+
+%test
+    # GNU sort, not BusyBox -- the whole reason this file exists. Fail loudly if a rebuild
+    # ever lands on a base image that regresses this.
+    sort --version | head -1 | grep -q "GNU coreutils" || { echo "NOT GNU sort"; exit 1; }
+    sort --temporary-directory=/tmp -k1 /dev/null || { echo "sort lacks --temporary-directory"; exit 1; }
+    # `time` must exist as a binary, not just the bash keyword -- ipa2-task is always called
+    # with leading env assignments, which forces external lookup.
+    test -x /usr/bin/time || { echo "no /usr/bin/time: every ipa2-task rule will exit 127"; exit 1; }
+    # Nextflow's task wrapper exits 1 before running anything if `ps` is missing.
+    command -v ps >/dev/null || { echo "no ps: every Nextflow task will exit 1 with no output"; exit 1; }
+    python3 -c "import snakemake, sys; v=int(snakemake.__version__.split('.')[0]); sys.exit(0 if v < 8 else 1)" \
+        || { echo "snakemake 8+ will reject IPA's --reason"; exit 1; }
+    ipa --version
+    ipa validate
+
+%labels
+    Description IPA HiFi genome assembler (PacBio), with GNU sort and snakemake <8

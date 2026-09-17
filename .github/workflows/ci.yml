@@ -1,0 +1,102 @@
+# Fast checks on every push and pull request: no containers, no data, a few minutes.
+# The real-data validation (-profile mlp / map) needs days and hundreds of GB, so it stays a
+# manual step on a cluster before each release.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: Config guard + Python syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Config selector / closure / escaping guard
+        run: python3 bin/check_config_selectors.py
+      - name: Python scripts compile
+        run: python3 -m py_compile bin/*.py
+      - name: Shell scripts parse
+        run: for f in run_pipeline.sh bin/*.sh; do bash -n "$f"; done
+
+  stub:
+    name: Stub run (${{ matrix.branches }}, Nextflow ${{ matrix.nxf }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        nxf: ['24.04.0', 'latest-stable']
+        branches: [default, all]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: nf-core/setup-nextflow@v2
+        with:
+          version: ${{ matrix.nxf }}
+
+      # Stub runs never read these, but parameter validation checks they exist.
+      - name: Fake inputs
+        run: |
+          mkdir -p ci/db/kraken ci/db/busco/pucciniomycetes_odb12 ci/db/fcs
+          cd ci
+          touch r1.fastq.gz r2.fastq.gz hic_1.fq.gz hic_2.fq.gz genes.fa mito.fa fcs.sif ipa.sif np.sif
+          printf 'sample,run,fastq\nrust,run1,%s/r1.fastq.gz\nrust,run2,%s/r2.fastq.gz\n' "$PWD" "$PWD" > samplesheet.csv
+
+      - name: Help renders
+        run: nextflow run . --help
+
+      - name: Stub run
+        run: |
+          ARGS=(--input ci/samplesheet.csv --outdir ci/out --genome_size 500m
+                --kraken_db ci/db/kraken --busco_db ci/db/busco
+                --fcs_gx_db ci/db/fcs --fcs_gx_sif ci/fcs.sif --fcs_gx_taxid 5264
+                --ipa_sif ci/ipa.sif)
+          if [[ "${{ matrix.branches }}" == all ]]; then
+            ARGS+=(--run_verkko true --subset_assemblies
+                   --hic_r1 ci/hic_1.fq.gz --hic_r2 ci/hic_2.fq.gz
+                   --run_nuclearphaser --nuclearphaser_genes ci/genes.fa --nuclearphaser_sif ci/np.sif
+                   --run_scaffolding --run_mito_screen --mito_reference ci/mito.fa)
+          fi
+          nextflow run . -profile stub -stub-run -ansi-log false "${ARGS[@]}"
+
+      - name: Deliverables exist
+        run: |
+          test -s ci/out/assembly_summary.tsv
+          if [[ "${{ matrix.branches }}" == all ]]; then
+            test -d ci/out/phasing/nuclearphaser
+            test -s ci/out/scaffolding/scaffold_summary.tsv
+          fi
+
+      - name: Trace on failure
+        if: failure()
+        run: cat .nextflow.log | tail -200
+
+  lint:
+    # Advisory until the code is moved to Nextflow's strict syntax: `nextflow lint` currently
+    # reports errors (top-level `def` in configs, etc.) that today's Nextflow runs happily.
+    name: nextflow lint (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: nf-core/setup-nextflow@v2
+        with:
+          version: latest-stable
+      - run: nextflow lint . -o concise

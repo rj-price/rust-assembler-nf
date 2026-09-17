@@ -1,0 +1,33 @@
+# Published metrics for Melampsora larici-populina, transcribed from Table 1 of
+# Duplessis et al., G3 2026, doi:10.1093/g3journal/jkag247 ("Assembly metrics of Melampsora
+# larici-populina genome version 3"). Reference targets for the validation run.
+#
+# HOW TO COMPARE. The v3 haplotypes are Hi-C SCAFFOLDED to 18 scaffolds each; this pipeline
+# emits CONTIGS unless Hi-C is supplied. Comparable without scaffolding: assembly_size,
+# contigs, gc_pct, busco_complete_pct, busco_duplicated_pct. Not comparable until the Hi-C
+# branch runs: scaffolds, scaffold_n50, scaffold_n90, max_scaffold, telomeres, centromeres.
+#
+# Their method, for a like-for-like run: hifiasm v0.19.9-r616, Hi-C integration mode, default
+# parameters, 25.3 Gb HiFi + 65M Hi-C reads; BUSCO v5 against Basidiomycota; NuclearPhaser for
+# phasing. conf/mlp.config matches the hifiasm and BUSCO choices.
+#
+# v2 is the PREVIOUS reference (the old collapsed assembly), kept as the floor to beat.
+# unphased is the 4.04 Mb of contigs v3 could not assign to a haplotype; it is not a target.
+#
+metric	v2	v3_H0	v3_H1	v3_unphased
+scaffolds	511	18	18	NA
+assembly_size_mb	109.88	100.80	102.64	4.04
+contigs	4520	32	39	44
+scaffold_n50	8	8	8	11
+scaffold_l50_mb	5.82	5.74	5.42	100.57
+scaffold_n90	18	16	16	33
+scaffold_l90_mb	4.01	4.15	4.17	0.03892
+max_scaffold_mb	8.57	8.24	8.67	NA
+gaps_pct	5.83	0.001	0.001	0
+gc_pct	41.0	40.9	40.9	38.9
+telomeres	NA	30	28	3
+centromeres	NA	18	18	NA
+busco_complete_pct	90.3	90.5	90.6	0.1
+busco_duplicated_pct	3.1	0.5	0.5	0
+genes	19550	18507	18158	NA
+te_pct	46.9	55.7	56.3	5.7

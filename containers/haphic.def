@@ -1,0 +1,65 @@
+Bootstrap: docker
+From: mambaorg/micromamba:1.5.8
+
+#
+# HapHiC has no biocontainer. Checked against the Galaxy depot: there is a yahs image but no
+# haphic one, which is why YaHS is this pipeline's default scaffolder and HapHiC is the
+# opt-in alternative — the default should not require a local build.
+#
+# HapHiC is worth the build anyway. Duplessis et al. (2026) used it to scaffold
+# M. allii-populina 12AY07, and unlike YaHS it was designed for haplotype-phased and polyploid
+# assemblies, where the assumption that every contig belongs to one linear genome is wrong.
+#
+# Build once, then point --haphic_sif at the result:
+#
+#     apptainer build haphic.sif containers/haphic.def
+#     nextflow run . -profile gruffalo,mlp --run_scaffolding --scaffolder haphic \
+#         --haphic_sif /path/to/haphic.sif --scaffold_n_chromosomes 18 ...
+#
+# Pinned to a tag rather than a branch, so a rebuild in six months is the same software — the
+# same reasoning that pins every image in conf/apptainer.config.
+#
+
+%environment
+    export PATH=/opt/conda/bin:/opt/HapHiC:/opt/HapHiC/scripts:$PATH
+    export PYTHONPATH=/opt/HapHiC:$PYTHONPATH
+
+%post
+    export PATH=/opt/conda/bin:$PATH
+
+    # procps, for Nextflow rather than for HapHiC. Every task wrapper opens with, in
+    # .command.run's nxf_trace_linux:
+    #     command -v ps &>/dev/null || { >&2 echo "Command 'ps' required ..."; exit 1; }
+    # so a container without `ps` fails the task before .command.sh is ever sourced — exit 1,
+    # empty .command.out, and nothing in .command.err but that one line. IPA died that way in
+    # job 34058085 and NuclearPhaser in 34148173. Stock biocontainers ship procps as a matter
+    # of course; this image's mambaorg/micromamba base does not.
+    apt-get update
+    apt-get install -y --no-install-recommends git procps
+    rm -rf /var/lib/apt/lists/*
+
+    micromamba install -y -p /opt/conda -c conda-forge -c bioconda \
+        python=3.10 \
+        numpy scipy networkx matplotlib pysam portion sparse_dot_mkl scikit-learn \
+        samtools
+    micromamba clean -a -y
+
+    git clone --depth 1 --branch v1.0.7 https://github.com/zengxiaofei/HapHiC.git /opt/HapHiC
+    chmod +x /opt/HapHiC/haphic
+
+%test
+    # Nextflow's task wrapper exits 1 before running anything if `ps` is missing.
+    command -v ps >/dev/null || { echo "no ps: every Nextflow task will exit 1 with no output"; exit 1; }
+    haphic --help >/dev/null || { echo "haphic not on PATH or not runnable"; exit 1; }
+
+    # A SUBCOMMAND, not just the top level. `haphic --help` is argparse in the launcher and
+    # imports nothing, so it passed happily on an image whose pipeline was unrunnable:
+    #     ModuleNotFoundError: No module named 'sklearn'
+    # Only `haphic pipeline --help` execs scripts/HapHiC_pipeline.py, which imports
+    # HapHiC_cluster, which imports sklearn. scikit-learn is in upstream's own
+    # conda_env/environment_py310.yml and was simply missed here. Test what runs.
+    haphic pipeline --help >/dev/null || { echo "haphic pipeline is not runnable"; exit 1; }
+
+%labels
+    Tool HapHiC
+    Version v1.0.7

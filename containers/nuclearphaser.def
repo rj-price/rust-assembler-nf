@@ -1,0 +1,68 @@
+Bootstrap: docker
+From: mambaorg/micromamba:1.5.8
+
+#
+# NuclearPhaser has no biocontainer. Checked against the Galaxy depot: there is no
+# nuclearphaser image, and none for BioKanga or HiC-Pro either, so the phasing branch cannot
+# be assembled from stock biocontainers alone the way the rest of this pipeline is.
+#
+# Only NuclearPhaser itself needs this image. Everything else in the phasing path — pblat for
+# the gene mapping, bwa/samtools/pairtools/cooler for the contact map — is a stock
+# biocontainer pinned in conf/apptainer.config.
+#
+# Build once, then point --nuclearphaser_sif at the result:
+#
+#     apptainer build nuclearphaser.sif containers/nuclearphaser.def
+#     nextflow run . -profile gruffalo --run_nuclearphaser \
+#         --nuclearphaser_sif /path/to/nuclearphaser.sif ...
+#
+# Pinned to a commit rather than a branch, so a rebuild in six months is the same software —
+# the same reasoning that pins every image in conf/apptainer.config.
+#
+
+%environment
+    export PATH=/opt/conda/bin:/opt/NuclearPhaser:$PATH
+    export PYTHONPATH=/opt/NuclearPhaser:$PYTHONPATH
+
+%post
+    export PATH=/opt/conda/bin:$PATH
+
+    # procps, for Nextflow rather than for NuclearPhaser. Every task wrapper opens with,
+    # in .command.run's nxf_trace_linux:
+    #     command -v ps &>/dev/null || { >&2 echo "Command 'ps' required ..."; exit 1; }
+    # so a container without `ps` fails the task before .command.sh is ever sourced -- exit
+    # 1, empty .command.out, and nothing in .command.err but that one line. The first real
+    # NUCLEARPHASER task, in job 34148173, died exactly that way, as IPA had before it in
+    # 34058085. Stock biocontainers ship procps as a matter of course; this image's
+    # mambaorg/micromamba base does not, so both locally built images must add it.
+    # containers/ipa.def carries the same note.
+    apt-get update
+    apt-get install -y --no-install-recommends procps
+    rm -rf /var/lib/apt/lists/*
+
+    micromamba install -y -n base -c conda-forge -c bioconda \
+        python=3.10 \
+        networkx \
+        python-louvain \
+        matplotlib \
+        numpy \
+        scipy \
+        minimap2 \
+        git
+
+    micromamba clean -a -y
+
+    # NuclearPhaser is a set of scripts, not a package: clone and put it on PATH.
+    git clone https://github.com/JanaSperschneider/NuclearPhaser.git /opt/NuclearPhaser
+    cd /opt/NuclearPhaser && git checkout main
+    chmod +x /opt/NuclearPhaser/NuclearPhaser.py
+
+%test
+    # Nextflow's task wrapper exits 1 before running anything if `ps` is missing.
+    command -v ps >/dev/null || { echo "no ps: every Nextflow task will exit 1 with no output"; exit 1; }
+    python3 -c "import networkx, community, matplotlib" && echo "python deps ok"
+    minimap2 --version
+    NuclearPhaser.py 2>&1 | head -3 || true
+
+%labels
+    Description NuclearPhaser (Sperschneider et al.) for dikaryotic rust phasing

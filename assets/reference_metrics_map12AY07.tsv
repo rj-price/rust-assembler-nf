@@ -1,0 +1,38 @@
+# Published metrics for Melampsora allii-populina 12AY07, transcribed from Table 2 of
+# Duplessis et al., G3 2026, doi:10.1093/g3journal/jkag247 ("Assembly metrics of Melampsora
+# allii-populina genome version 2"). Reference targets for the validation run.
+#
+# HOW TO COMPARE. As for mlp (see reference_metrics_mlp98AG31.tsv): H0/H1 are Hi-C SCAFFOLDED
+# to 18 scaffolds each, so contig-level rows compare to assembly_summary.tsv and scaffold-level
+# rows to scaffold_summary.tsv.
+#
+# Method differences that matter more here than for mlp. The paper scaffolded 12AY07 with
+# HapHiC (36 chromosomes, diploid) on a first-round NuclearPhaser assembly, then MANUALLY
+# corrected it: dot-plot comparison, re-ordering against M. lini haplotype C, RagTag correct
+# and scaffold, and a second NuclearPhaser pass. This pipeline does none of the manual steps,
+# so the scaffold rows are a ceiling, not a target. Contigs under 2x coverage were also
+# filtered before cleaning (7x for mlp).
+#
+# BUSCO complete is asymmetric (90.7 vs 86.1%); do not read a hap2 deficit here as our error
+# without checking the published H1 first.
+#
+# v1 is the PREVIOUS reference (collapsed, fragmented), kept as the floor to beat.
+# unphased is the 8.53 Mb of contigs v2 could not assign to a haplotype; it is not a target.
+#
+metric	v1	v2_H0	v2_H1	v2_unphased
+scaffolds	3637	18	18	NA
+assembly_size_mb	335.73	224.03	219.39	8.53
+contigs	3637	33	46	116
+scaffold_n50	440	8	8	30
+scaffold_l50_mb	0.1914	13.31	12.91	0.07911
+scaffold_n90	2188	16	16	92
+scaffold_l90_mb	0.0355	9.29	9.11	0.04198
+max_scaffold_mb	1.29	17.52	16.99	0.31262
+gaps_pct	0	0	0.001	0
+gc_pct	40.0	40.0	40.0	38
+telomeres	NA	26	24	2
+centromeres	NA	18	18	NA
+busco_complete_pct	89.7	90.7	86.1	0.3
+busco_duplicated_pct	22.1	1.1	1.1	0.1
+genes	23089	17745	17494	NA
+te_pct	74.8	82.3	82.0	2.7
