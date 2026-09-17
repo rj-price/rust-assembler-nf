@@ -7,138 +7,37 @@
 Phased assembly and haplotype resolution of **dikaryotic rust (Pucciniales) genomes** from
 PacBio HiFi reads, with optional Hi-C phasing and scaffolding.
 
-This is a **research/decision pipeline**. It deliberately generates several assembly
-candidates and the evidence needed to judge which is biologically credible. It does not try
-to emit a single "final" FASTA. The dikaryon is the crux: the goal is to *retain* two nuclear
+This pipeline generates several assembly
+candidates and the evidence needed to judge which is biologically credible. It does not 
+emit a single "final" FASTA. The goal is to *retain* two nuclear
 genomes, so every duplication-collapsing step is off by default and gated behind human
 judgement.
-
-If you want a pipeline that hands you one polished assembly, this is the wrong one. If you
-want to know whether your assembly has quietly collapsed two nuclei into one, it is the right
-one.
 
 ---
 
 ## Why a rust-specific pipeline
 
-Rust fungi are dikaryotic: two genetically distinct haploid nuclei coexist in one cell.
+Rust fungi are dikaryotic, i.e., two genetically distinct haploid nuclei coexisting in one cell.
 General-purpose assembly pipelines are built around haploid or diploid genomes, and their
 defaults actively work against you here:
 
 - **Duplication looks like error, but is the signal.** High BUSCO duplication in an unphased
-  rust assembly is usually *correct*. It means both nuclei are present. Pipelines that purge
+  rust assembly means that both nuclei are present. Pipelines that purge
   duplication to "improve" an assembly destroy exactly what you are trying to keep.
 - **hifiasm's default purge level (`-l 3`) is aggressive.** This pipeline defaults to `-l 1`.
 - **GenomeScope2 models a diploid.** On a dikaryon its fit degrades, and the fit statistic
   misleads. Coverage modes and smudgeplot are used as independent cross-checks.
-- **Read classifiers mis-assign rust reads.** Most rusts are absent from standard Kraken2
-  databases, so reads fall back to whatever large repeat-rich genome is nearest. On the bean
-  rust dataset this pipeline was built for, Kraken2 called 62% of a demonstrably fungal
-  dataset *human*; FCS-GX on the assemblies found no such thing. Classification is therefore
-  **evidence, never an automatic filter**, and `--kraken2_confidence` defaults to `0.1` rather
-  than Kraken2's own `0.0`, at which a single matching k-mer anywhere in a 15–20 kb HiFi read
-  is enough to claim it.
 
 ---
 
 ## What it does
 
-```mermaid
-flowchart TD
-    IN[/"samplesheet.csv<br>PacBio HiFi FASTQ, one row per run"/]
-    HOST[/"host reference<br>optional"/]
-    HIC[/"Hi-C R1 / R2<br>optional"/]
-    GENES[/"gene set FASTA<br>optional"/]
-    MITO[/"mitochondrial reference<br>optional"/]
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/metro_map_dark.png">
+  <img alt="rust-assembler-nf metro map" src="docs/images/metro_map_light.png">
+</picture>
 
-    subgraph RQ["READ_QC"]
-        direction TB
-        SS["seqkit stats"] --> RQS["read_qc_summary"]
-        NP["NanoPlot"] --> RQS
-        SF["seqkit filter<br>off by default"]
-    end
-
-    subgraph KA["KMER_ANALYSIS"]
-        direction TB
-        MC["meryl count"] --> MH["meryl histogram"]
-        MH --> GS["GenomeScope2"] --> KS["kmer_summary"]
-        MH --> SC["smudgeplot cutoff"] --> MP["meryl print"] --> SP["smudgeplot"]
-    end
-
-    subgraph CON["CONTAMINATION - reads"]
-        direction TB
-        K2["Kraken2<br>evidence only"]
-        MMH["minimap2 vs host"]
-    end
-
-    subgraph ASM["ASSEMBLY"]
-        direction TB
-        HA["hifiasm<br>purge level 1"] --> G2F["gfa2fasta"]
-        FL["Flye"]
-        HC["HiCanu"]
-        IPA["IPA"]
-        VK["Verkko<br>off by default"]
-    end
-
-    subgraph AQC["ASSEMBLY_QC - every candidate, same evidence"]
-        direction TB
-        FCS["FCS-GX"] --> FCSC["fcs_gx_clean<br>EXCLUDE / TRIM only"]
-        FCSC --> MS["mito screen<br>optional"]
-        MS --> QC["gfastats · BUSCO · Merqury QV<br>coverage · telomeres"]
-    end
-
-    subgraph PH["PHASING - NuclearPhaser, optional"]
-        direction TB
-        PBL["pblat gene synteny"]
-        HAL["bwa Hi-C align"] --> HPR["pairtools"] --> HMX["cooler matrix"]
-        NPH["NuclearPhaser<br>one pass, no auto-correction"]
-    end
-
-    subgraph SCF["SCAFFOLDING - optional"]
-        direction TB
-        HB["Hi-C BAM"] --> YH["YaHS or HapHiC"] --> SS2["scaffold_summary"]
-    end
-
-    subgraph REP["REPORTING"]
-        direction TB
-        AR["assembly_record"] --> AS["assembly_summary<br>.tsv / .json"]
-        CH["coverage_histograms"]
-        MQC["MultiQC"]
-    end
-
-    IN --> RQ
-    IN --> KA
-    IN --> CON
-    HOST --> MMH
-
-    RQ -->|"raw reads, always"| ASM
-    SF -.->|"--filtered_assembly"| ASM
-    MMH -.->|"--host_filtered_assembly"| ASM
-    HIC -.->|"--hic_r1 / --hic_r2<br>switches hifiasm to fully phased"| HA
-
-    ASM -->|"assemblies channel<br>blind to provenance"| AQC
-    MITO -.-> MS
-    MC -->|"meryl DB reused"| QC
-
-    AQC -.->|"--run_nuclearphaser<br>cleaned primaries"| PH
-    HIC -.-> HAL
-    GENES -.-> PBL
-    PBL --> NPH
-    HMX --> NPH
-
-    HA -.->|"fully phased hap1/hap2"| SCF
-    NPH -.->|"np_hap0 / np_hap1"| SCF
-    HIC -.-> HB
-
-    AQC --> REP
-    RQ --> MQC
-    KA --> MQC
-    CON --> MQC
-
-    AS --> OUT[/"assembly_summary.tsv<br>the deliverable"/]
-    MQC --> OUT2[/"multiqc_report.html"/]
-    SS2 --> OUT3[/"scaffolding/scaffold_summary.tsv"/]
-```
+Optional stages (Verkko, mito screen, Phasing, Scaffolding) are off by default; orange routes need Hi-C reads. The map is drawn with [nf-metro](https://github.com/seqeralabs/nf-metro) from `docs/images/metro_map.mmd`.
 
 | Stage | Tools | Notes |
 |---|---|---|
@@ -146,16 +45,13 @@ flowchart TD
 | k-mer analysis | meryl, GenomeScope2, smudgeplot | Before assembly; smudgeplot cross-checks the diploid model |
 | Contamination (reads) | Kraken2, minimap2 | Reports only. Nothing is discarded automatically |
 | Assembly | hifiasm, Flye, HiCanu, IPA, (Verkko) | Independent approaches; assembly graphs retained |
-| Contamination (assembly) | FCS-GX | Post-assembly. Far more reliable than read-level |
+| Contamination (assembly) | FCS-GX | Post-assembly. More reliable than read-level |
 | Assembly cleanup | `fcs_gx_clean.py` | Acts on FCS-GX's EXCLUDE/TRIM calls, writing a *new* cleaned FASTA |
 | Mitochondrion | BLASTn + `mito_screen.py` | Off by default. Removes the mitochondrion, which FCS-GX cannot see |
 | Assembly QC | gfastats, BUSCO, Merqury, minimap2 coverage, telomere scan | Same evidence for every candidate, measured on the cleaned assembly |
 | Phasing (optional) | pblat, bwa/pairtools/cooler, NuclearPhaser | Hi-C phasing of **any** assembler's output, not just hifiasm's |
 | Scaffolding (optional) | bwa, YaHS or HapHiC | Fully phased haplotypes only; its own table |
 | Reporting | MultiQC, `assembly_summary.tsv`/`.json` | Machine-readable comparison |
-
-Every expensive step is a separately-cacheable process, so changing a QC plot never
-invalidates a multi-day assembly.
 
 ---
 
@@ -201,7 +97,7 @@ nextflow run . --input assets/samplesheet.csv --genome_size 500m \
 RAW_DIR=/path/to/your/fastqs bash bin/make_test_data.sh
 nextflow run . -profile test,<site>
 
-# 3. Real run on SLURM: submit the driver, never run it on a login node
+# 3. Real run on SLURM (submit the driver, never run it on a login node)
 NF_PROFILE=<site> NF_INPUT=/path/to/samplesheet.csv NF_OUTDIR=$SCRATCH/myrust/results \
     sbatch run_pipeline.sh --genome_size 525m --fcs_gx_taxid 5264
 ```
@@ -284,9 +180,8 @@ the only one needed for a default run.
 ## Validation
 
 The pipeline has been run end to end, with no manual steps, on both isolates from
-Duplessis et al. (2026), *G3*, [doi:10.1093/g3journal/jkag247](https://doi.org/10.1093/g3journal/jkag247),
-whose chromosome-level phased assemblies are the published answer. The dataset profiles
-reproduce these runs from public ENA data:
+Duplessis et al. (2026), *G3*, [doi:10.1093/g3journal/jkag247](https://doi.org/10.1093/g3journal/jkag247). 
+The dataset profiles reproduce these runs from public ENA data:
 
 ```bash
 nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile mlp,<site> --outdir mlp_results
@@ -632,6 +527,7 @@ modules/local/           one process per tool
 bin/                     summary scripts (python 3.6-compatible) + check_config_selectors.py
 assets/                  samplesheets, published reference metrics, NO_FILE_* placeholders
 containers/              Apptainer definitions for IPA, NuclearPhaser and HapHiC
+docs/images/             metro map (metro_map.mmd, rendered with nf-metro)
 .github/workflows/       CI (stub runs, config guard, lint) and tagged releases
 ```
 

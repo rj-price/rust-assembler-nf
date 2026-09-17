@@ -1,0 +1,104 @@
+%%metro title: rust-assembler-nf
+%%metro style: nfcore
+%%metro line: hifi | PacBio HiFi reads | #2db572
+%%metro line: asm | Assembly candidates | #0570b0
+%%metro line: hic | Hi-C reads (optional) | #e6842a
+%%metro files: in_hifi | FASTQ | HiFi reads
+%%metro files: in_hic | FASTQ | Hi-C R1/R2
+%%metro file: out_summary | TSV | assembly_summary
+%%metro file: out_mqc | HTML | MultiQC report
+%%metro off_track: in_hic
+%%metro compact_offsets: true
+%%metro legend: br
+%%metro grid: readqc | 0,0
+%%metro grid: kmer | 1,0
+%%metro grid: assembly | 2,0
+%%metro grid: asmqc | 2,1
+%%metro grid: phasing | 1,1
+%%metro grid: scaffolding | 0,1
+%%metro grid: reporting | 0,2
+graph LR
+    subgraph readqc [Read QC]
+        in_hifi[ ]
+        seqkit[seqkit stats]
+        nanoplot[NanoPlot]
+        kraken2[Kraken2]
+        mm_host[minimap2 host]
+        in_hifi -->|hifi| seqkit
+        seqkit -->|hifi| nanoplot
+        nanoplot -->|hifi| kraken2
+        kraken2 -->|hifi| mm_host
+    end
+    subgraph kmer [K-mer analysis]
+        meryl[meryl]
+        genomescope[GenomeScope2]
+        smudgeplot[Smudgeplot]
+        meryl -->|hifi| genomescope
+        genomescope -->|hifi| smudgeplot
+    end
+    subgraph assembly [Assembly]
+        %%metro exit: bottom | asm,hic
+        asm_in[ ]
+        hifiasm[hifiasm]
+        flye[Flye]
+        hicanu[HiCanu]
+        ipa[IPA]
+        verkko[Verkko]
+        in_hic[ ]
+        asm_out[ ]
+        asm_in -->|hifi| hifiasm
+        asm_in -->|hifi| flye
+        asm_in -->|hifi| hicanu
+        asm_in -->|hifi| ipa
+        asm_in -->|hifi| verkko
+        in_hic -->|hic| hifiasm
+        hifiasm -->|asm,hic| asm_out
+        flye -->|asm| asm_out
+        hicanu -->|asm| asm_out
+        ipa -->|asm| asm_out
+        verkko -->|asm| asm_out
+    end
+    subgraph asmqc [Assembly QC]
+        %%metro direction: RL
+        %%metro entry: top | asm,hic
+        %%metro exit: left | asm,hic
+        fcsgx[FCS-GX clean]
+        mito[Mito screen]
+        gfastats[gfastats]
+        busco[BUSCO]
+        merqury[Merqury QV]
+        fcsgx -->|asm,hic| mito
+        mito -->|asm,hic| gfastats
+        gfastats -->|asm,hic| busco
+        busco -->|asm,hic| merqury
+    end
+    subgraph phasing [Phasing]
+        %%metro direction: RL
+        hicmap[bwa + pairtools]
+        nuclearphaser[NuclearPhaser]
+        hicmap -->|asm,hic| nuclearphaser
+    end
+    subgraph scaffolding [Scaffolding]
+        %%metro direction: RL
+        %%metro exit: bottom | asm
+        yahs[YaHS / HapHiC]
+        scaf_summary[scaffold_summary]
+        yahs -->|asm| scaf_summary
+    end
+    subgraph reporting [Reporting]
+        %%metro entry: top | asm
+        summary[assembly_summary]
+        multiqc[MultiQC]
+        out_summary[ ]
+        out_mqc[ ]
+        summary -->|asm| out_summary
+        summary -->|asm| multiqc
+        multiqc -->|asm| out_mqc
+    end
+
+    mm_host -->|hifi| meryl
+    smudgeplot -->|hifi| asm_in
+    asm_out -->|asm,hic| fcsgx
+    merqury -->|asm,hic| hicmap
+    nuclearphaser -->|asm,hic| yahs
+    scaf_summary -->|asm| summary
