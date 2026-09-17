@@ -4,7 +4,7 @@ process HIFIASM {
 
     // The assembly GRAPHS are first-class outputs, not throwaway intermediates — they carry
     // the haplotype structure that a flat FASTA discards.
-    publishDir "${params.outdir}/assembly/hifiasm/${meta.id}", mode: params.publish_dir_mode
+    publishDir path: { "${params.outdir}/assembly/hifiasm/${meta.id}" }, mode: params.publish_dir_mode
 
     input:
     tuple val(meta), path(reads)

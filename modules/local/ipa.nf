@@ -2,7 +2,7 @@ process IPA {
     tag "${meta.id}"
     label 'process_assembly'
 
-    publishDir "${params.outdir}/assembly/ipa/${meta.id}", mode: params.publish_dir_mode
+    publishDir path: { "${params.outdir}/assembly/ipa/${meta.id}" }, mode: params.publish_dir_mode
 
     input:
     tuple val(meta), path(reads)

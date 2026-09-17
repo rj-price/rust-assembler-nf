@@ -90,8 +90,6 @@ def helpMessage() {
     """.stripIndent()
 }
 
-if (params.help) { helpMessage(); exit 0 }
-
 /* ------------------------------------------------------------------------------------
  * Parameter validation — fail fast, before anything expensive is submitted
  * ---------------------------------------------------------------------------------- */
@@ -385,13 +383,14 @@ def classifyAssemblyFile(String filename) {
 
     def readset = null
     def sample  = null
-    for (rs in MULTI_TOKEN_READSETS) {
+    def match = MULTI_TOKEN_READSETS.find { rs ->
         def n = rs.tokenize('_').size()
-        if (st.size() > n && st[-n..-1].join('_') == rs) {
-            readset = rs
-            sample  = st[0..(st.size() - n - 1)].join('_')
-            break
-        }
+        st.size() > n && st[-n..-1].join('_') == rs
+    }
+    if (match != null) {
+        def n = match.tokenize('_').size()
+        readset = match
+        sample  = st[0..(st.size() - n - 1)].join('_')
     }
     if (readset == null) {
         readset = st[-1]
@@ -434,7 +433,27 @@ def assembliesFromDir(String dir) {
  * Main workflow
  * ---------------------------------------------------------------------------------- */
 
+def completionSummary() {
+    log.info """
+    Pipeline ${workflow.success ? 'completed' : 'FAILED'}
+      Duration : ${workflow.duration}
+      Results  : ${params.outdir}
+      Work dir : ${workflow.workDir}
+
+    ${workflow.success ? "Check assembly_summary.tsv.\n    Judge candidates on size_flag + BUSCO breakdown + QV + coverage modes — never on N50." : ""}
+    """.stripIndent()
+}
+
 workflow {
+
+    if (params.help) {
+        helpMessage()
+        exit 0
+    }
+
+    // Via a function: inside the workflow body, Nextflow 26's parser resolves `workflow` in
+    // the handler to null, so the summary could not read workflow.success.
+    workflow.onComplete { completionSummary() }
 
     validateParams()
 
@@ -647,15 +666,4 @@ workflow {
         ch_multiqc.collect(),
         ch_versions.unique().collectFile(name: 'collated_versions.yml')
     )
-}
-
-workflow.onComplete {
-    log.info """
-    Pipeline ${workflow.success ? 'completed' : 'FAILED'}
-      Duration : ${workflow.duration}
-      Results  : ${params.outdir}
-      Work dir : ${workflow.workDir}
-
-    ${workflow.success ? "Check assembly_summary.tsv.\n    Judge candidates on size_flag + BUSCO breakdown + QV + coverage modes — never on N50." : ""}
-    """.stripIndent()
 }

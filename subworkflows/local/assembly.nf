@@ -36,11 +36,13 @@ def classifyHifiasmGfa(String name) {
 }
 
 // Unitig graphs are retained as evidence but are not assembly candidates for QC.
-def CONTIG_TYPES = [
-    'primary', 'alternate',
-    'partially_phased_hap1', 'partially_phased_hap2',
-    'fully_phased_hap1', 'fully_phased_hap2'
-]
+def contigTypes() {
+    return [
+        'primary', 'alternate',
+        'partially_phased_hap1', 'partially_phased_hap2',
+        'fully_phased_hap1', 'fully_phased_hap2'
+    ]
+}
 
 workflow ASSEMBLY {
 
@@ -115,7 +117,7 @@ workflow ASSEMBLY {
                 gfa
             )
         }
-        .filter { meta, gfa -> meta.assembly_type in CONTIG_TYPES }
+        .filter { meta, gfa -> meta.assembly_type in contigTypes() }
 
     GFA2FASTA(ch_hifiasm_gfa)
     ch_versions = ch_versions.mix(GFA2FASTA.out.versions.ifEmpty(null))

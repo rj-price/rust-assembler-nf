@@ -21,7 +21,7 @@
 #   NF_OUTDIR    results directory                      [$SCRATCH/rust-assembler-nf/results]
 #   NF_WORK      Nextflow work directory                [from the site profile]
 #   NF_PIPELINE  what to run: this clone, or a GitHub    [this repo]
-#                project + revision, e.g. "rj-price/rust-assembler-nf -r v1.0.0"
+#                project + revision, e.g. "rj-price/rust-assembler-nf -r v1.0.1"
 #   NF_CONDA_ENV conda env holding nextflow, used only   [nextflow]
 #                when nextflow is not already on PATH
 #   NF_ARGS      extra params, e.g. "--genome_size 525m"

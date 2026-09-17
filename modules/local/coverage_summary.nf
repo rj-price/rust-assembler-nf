@@ -2,7 +2,7 @@ process COVERAGE_SUMMARY {
     tag "${meta.id}"
     label 'process_low'
 
-    publishDir "${params.outdir}/assembly_qc/coverage/${meta.id}", mode: params.publish_dir_mode
+    publishDir path: { "${params.outdir}/assembly_qc/coverage/${meta.id}" }, mode: params.publish_dir_mode
 
     input:
     tuple val(meta), path(depth), path(coverage), val(yield_bases)

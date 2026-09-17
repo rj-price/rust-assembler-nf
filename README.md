@@ -161,7 +161,7 @@ invalidates a multi-day assembly.
 
 ## Quick start
 
-Requires Nextflow ≥24.04 and Apptainer. Almost every tool comes from a pinned biocontainer.
+Requires Nextflow ≥24.04 (tested on 24.04, 25.04 and 26.04) and Apptainer. Almost every tool comes from a pinned biocontainer.
 Three have no usable public image and are built once from the bundled definitions: IPA (on by
 default), NuclearPhaser and HapHiC (only when their branch is used). See
 [Locally built containers](#locally-built-containers).
@@ -172,7 +172,7 @@ Like nf-core pipelines, this runs without cloning. Nextflow fetches the reposito
 `~/.nextflow/assets/` and runs it from there:
 
 ```bash
-nextflow run rj-price/rust-assembler-nf -r v1.0.0 \
+nextflow run rj-price/rust-assembler-nf -r v1.0.1 \
     -profile <site> \
     --input samplesheet.csv --genome_size 525m --fcs_gx_taxid 5264 \
     --outdir results
@@ -246,7 +246,7 @@ This split is the main thing to understand before running it anywhere new.
 Combine them on the command line:
 
 ```bash
-nextflow run rj-price/rust-assembler-nf -r v1.0.0 -profile mlp,gruffalo --outdir results
+nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile mlp,gruffalo --outdir results
 ```
 
 ### Porting to another cluster
@@ -289,8 +289,8 @@ whose chromosome-level phased assemblies are the published answer. The dataset p
 reproduce these runs from public ENA data:
 
 ```bash
-nextflow run rj-price/rust-assembler-nf -r v1.0.0 -profile mlp,<site> --outdir mlp_results
-nextflow run rj-price/rust-assembler-nf -r v1.0.0 -profile map,<site> --outdir map_results
+nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile mlp,<site> --outdir mlp_results
+nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile map,<site> --outdir map_results
 ```
 
 hifiasm's Hi-C haplotypes against the published H0/H1, after YaHS scaffolding. The full
@@ -377,7 +377,7 @@ No architectural change needed. Supply both reads and hifiasm switches to fully-
 output:
 
 ```bash
-nextflow run rj-price/rust-assembler-nf -r v1.0.0 -profile <site> \
+nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile <site> \
     --input samplesheet.csv --genome_size 525m --fcs_gx_taxid <taxid> \
     --hic_r1 R1.fq.gz --hic_r2 R2.fq.gz
 ```
@@ -393,7 +393,7 @@ Hi-C library applies to every candidate. It was designed on dikaryotic rusts, wh
 precisely this case.
 
 ```bash
-nextflow run rj-price/rust-assembler-nf -r v1.0.0 -profile <site> ... \
+nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile <site> ... \
     --hic_r1 R1.fq.gz --hic_r2 R2.fq.gz \
     --run_nuclearphaser --nuclearphaser_genes genes.fa \
     --nuclearphaser_sif nuclearphaser.sif
@@ -426,7 +426,7 @@ Phasing says *which nucleus* a contig belongs to. Scaffolding says *where in tha
 sits, and it is what makes a scaffold N50 comparable with published assemblies.
 
 ```bash
-nextflow run rj-price/rust-assembler-nf -r v1.0.0 -profile <site> ... \
+nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile <site> ... \
     --hic_r1 R1.fq.gz --hic_r2 R2.fq.gz --run_scaffolding
 ```
 

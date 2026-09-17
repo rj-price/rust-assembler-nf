@@ -2,7 +2,7 @@ process GFA2FASTA {
     tag "${meta.id}"
     label 'process_low'
 
-    publishDir "${params.outdir}/assembly/${meta.assembler}/${meta.sample}_${meta.readset}/fasta",
+    publishDir path: { "${params.outdir}/assembly/${meta.assembler}/${meta.sample}_${meta.readset}/fasta" },
         mode: params.publish_dir_mode
 
     input:

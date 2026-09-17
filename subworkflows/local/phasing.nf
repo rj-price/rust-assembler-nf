@@ -33,7 +33,7 @@ workflow PHASING {
     // Phasing every candidate is wasteful: haplotype outputs are already phased, and unitig
     // graphs are not assemblies. The default targets primaries only, which is where the
     // question "can Hi-C separate the two nuclei here?" actually lives.
-    def target_re = ~/${params.nuclearphaser_targets}/
+    def target_re = java.util.regex.Pattern.compile(params.nuclearphaser_targets)
     def by_name = ch_candidates.filter { meta, fasta -> meta.id ==~ target_re }
 
     // NuclearPhaser splits an assembly into two nuclei, so it needs one that HOLDS both. A

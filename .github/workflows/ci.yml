@@ -72,12 +72,13 @@ jobs:
           fi
           nextflow run . -profile stub -stub-run -ansi-log false "${ARGS[@]}"
 
+      # Stub outputs are empty placeholders, so check presence, not content.
       - name: Deliverables exist
         run: |
-          test -s ci/out/assembly_summary.tsv
+          test -f ci/out/assembly_summary.tsv
           if [[ "${{ matrix.branches }}" == all ]]; then
             test -d ci/out/phasing/nuclearphaser
-            test -s ci/out/scaffolding/scaffold_summary.tsv
+            test -f ci/out/scaffolding/scaffold_summary.tsv
           fi
 
       - name: Trace on failure
@@ -85,11 +86,10 @@ jobs:
         run: cat .nextflow.log | tail -200
 
   lint:
-    # Advisory until the code is moved to Nextflow's strict syntax: `nextflow lint` currently
-    # reports errors (top-level `def` in configs, etc.) that today's Nextflow runs happily.
-    name: nextflow lint (advisory)
+    # Nextflow 26.04 made strict syntax the default, so a lint error is now a pipeline that
+    # will not compile on current Nextflow. Warnings are allowed; errors fail the build.
+    name: nextflow lint
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4

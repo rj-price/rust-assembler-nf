@@ -2,7 +2,7 @@ process NANOPLOT {
     tag "${meta.id}"
     label 'process_medium'
 
-    publishDir "${params.outdir}/read_qc/nanoplot/${meta.id}", mode: params.publish_dir_mode
+    publishDir path: { "${params.outdir}/read_qc/nanoplot/${meta.id}" }, mode: params.publish_dir_mode
 
     input:
     tuple val(meta), path(reads)

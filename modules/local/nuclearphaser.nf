@@ -2,7 +2,7 @@ process NUCLEARPHASER {
     tag "${meta.id}"
     label 'process_medium'
 
-    publishDir "${params.outdir}/phasing/nuclearphaser/${meta.id}", mode: params.publish_dir_mode
+    publishDir path: { "${params.outdir}/phasing/nuclearphaser/${meta.id}" }, mode: params.publish_dir_mode
 
     input:
     tuple val(meta), path(fasta), path(gene_mapping), path(busco_table), path(contacts)

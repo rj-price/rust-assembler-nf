@@ -41,7 +41,7 @@ workflow SCAFFOLDING {
     main:
     ch_versions = Channel.empty()
 
-    def target_re = ~/${params.scaffold_targets}/
+    def target_re = java.util.regex.Pattern.compile(params.scaffold_targets)
 
     // Source one: haplotypes an assembler produced directly, which reach here as ordinary
     // candidates and are selected by id.

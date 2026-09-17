@@ -2,7 +2,7 @@ process MERQURY {
     tag "${meta.id}"
     label 'process_medium'
 
-    publishDir "${params.outdir}/assembly_qc/merqury/${meta.id}", mode: params.publish_dir_mode
+    publishDir path: { "${params.outdir}/assembly_qc/merqury/${meta.id}" }, mode: params.publish_dir_mode
 
     input:
     tuple val(meta), path(fasta), path(gfa), path(meryl_db)

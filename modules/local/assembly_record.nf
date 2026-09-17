@@ -25,13 +25,13 @@ process ASSEMBLY_RECORD {
     // byte counts, so they can never go stale against a revised genome-size estimate.
     def dik_min = GenomeSize.dikaryonMin(params.genome_size, params.dikaryon_size_frac_min)
     def dik_max = GenomeSize.dikaryonMax(params.genome_size, params.dikaryon_size_frac_max)
-    def gfastats_arg = real(gfastats) ? "--gfastats ${gfastats}" : ''
-    def busco_arg    = real(busco)    ? "--busco ${busco}"       : ''
-    def qv_arg       = real(qv)       ? "--qv ${qv}"             : ''
-    def cov_arg      = real(coverage) ? "--coverage ${coverage}" : ''
-    def telo_arg     = real(telomeres) ? "--telomeres ${telomeres}" : ''
-    def clean_arg    = real(fcs_clean) ? "--fcs-clean ${fcs_clean}" : ''
-    def mito_arg     = real(mito)      ? "--mito ${mito}"           : ''
+    def gfastats_arg = real.call(gfastats) ? "--gfastats ${gfastats}" : ''
+    def busco_arg    = real.call(busco)    ? "--busco ${busco}"       : ''
+    def qv_arg       = real.call(qv)       ? "--qv ${qv}"             : ''
+    def cov_arg      = real.call(coverage) ? "--coverage ${coverage}" : ''
+    def telo_arg     = real.call(telomeres) ? "--telomeres ${telomeres}" : ''
+    def clean_arg    = real.call(fcs_clean) ? "--fcs-clean ${fcs_clean}" : ''
+    def mito_arg     = real.call(mito)      ? "--mito ${mito}"           : ''
     """
     assembly_summary.py record \\
         --meta '${meta_json}' \\

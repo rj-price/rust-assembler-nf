@@ -2,7 +2,7 @@ process YAHS {
     tag "${meta.id}"
     label 'process_medium'
 
-    publishDir "${params.outdir}/scaffolding/yahs/${meta.id}", mode: params.publish_dir_mode
+    publishDir path: { "${params.outdir}/scaffolding/yahs/${meta.id}" }, mode: params.publish_dir_mode
 
     input:
     tuple val(meta), path(contigs), path(fai), path(bam)

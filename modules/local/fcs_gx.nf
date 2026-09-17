@@ -2,7 +2,7 @@ process FCS_GX {
     tag "${meta.id}"
     label 'process_himem'
 
-    publishDir "${params.outdir}/assembly_qc/fcs_gx/${meta.id}", mode: params.publish_dir_mode
+    publishDir path: { "${params.outdir}/assembly_qc/fcs_gx/${meta.id}" }, mode: params.publish_dir_mode
 
     input:
     tuple val(meta), path(fasta), path(gfa)

@@ -2,7 +2,7 @@ process HAPLOTYPE_COMPETITION {
     tag "${meta.id}"
     label 'process_high'
 
-    publishDir "${params.outdir}/assembly_qc/haplotype_competition/${meta.id}", mode: params.publish_dir_mode,
+    publishDir path: { "${params.outdir}/assembly_qc/haplotype_competition/${meta.id}" }, mode: params.publish_dir_mode,
         saveAs: { fn -> (fn.endsWith('.bam') || fn.endsWith('.bai')) ? null : fn }
 
     input:
