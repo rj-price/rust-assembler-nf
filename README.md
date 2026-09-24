@@ -137,7 +137,7 @@ This split is the main thing to understand before running it anywhere new.
 |---|---|---|
 | **Pipeline** | `nextflow.config`, `conf/base.config` | Everything true of the pipeline: defaults, resources, containers. No cluster paths, no species values. |
 | **Site** | `conf/gruffalo.config` | One cluster: database paths, container cache, queue routing, per-user caps, known-bad nodes. |
-| **Dataset** | `conf/mlp.config`, `conf/map.config` | One genome: size estimate, taxid, yield, which branches to run. |
+| **Dataset** | `conf/mlp.config`, `conf/map.config`, `conf/pt.config` | One genome: size estimate, taxid, yield, which branches to run. |
 
 Combine them on the command line:
 
@@ -180,12 +180,15 @@ the only one needed for a default run.
 ## Validation
 
 The pipeline has been run end to end, with no manual steps, on both isolates from
-Duplessis et al. (2026), *G3*, [doi:10.1093/g3journal/jkag247](https://doi.org/10.1093/g3journal/jkag247). 
-The dataset profiles reproduce these runs from public ENA data:
+Duplessis et al. (2026), *G3*, [doi:10.1093/g3journal/jkag247](https://doi.org/10.1093/g3journal/jkag247),
+and on *Puccinia triticina* 19NSW04 from Sperschneider et al. (2023), *Nature Microbiology*,
+[doi:10.1038/s41564-023-01494-9](https://doi.org/10.1038/s41564-023-01494-9). The dataset
+profiles reproduce these runs from public ENA data:
 
 ```bash
 nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile mlp,<site> --outdir mlp_results
 nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile map,<site> --outdir map_results
+nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile pt,<site> --outdir pt_results
 ```
 
 hifiasm's Hi-C haplotypes against the published H0/H1, after YaHS scaffolding. The full
@@ -207,11 +210,31 @@ difference is small unplaced contigs, which the paper removed by hand; the pipel
 that to you, deliberately (see [Design decisions](#design-decisions)). BUSCO is not strictly
 like for like (the paper used BUSCO v5; the pipeline uses BUSCO 6 with `basidiomycota_odb12`).
 
-The other assemblers, on the same data: HiCanu + NuclearPhaser came close behind (correct
+*P. triticina* 19NSW04, the first genome outside *Melampsora* and a different lab's method,
+agrees as closely:
+
+| | **Published B / C** | **Pipeline hap1 / hap2** |
+|---|---|---|
+| Size (Mb) | 122.08 / 123.74 | 126.94 / 128.01 |
+| Chromosome-scale scaffolds (≥1 Mb) | 18 / 18 | 20 / 20 |
+| All scaffolds | 18 / 18 | 90 / 40 |
+| Scaffold N50 (Mb) | 7.57 / 7.22 | 7.30 / 7.23 |
+| Largest scaffold (Mb) | 9.20 / 9.62 | 8.92 / 9.62 |
+| BUSCO complete / duplicated (%) | >95 / <5 | 93.4 / 3.6, 93.2 / 5.0 |
+| Merqury QV | — | 57.9 / 59.8 |
+
+The published haplotypes had contaminant, low-coverage and mitochondrial contigs removed by
+hand, which accounts for most of the 4 Mb size difference. BUSCO is not comparable here
+either: the paper used BUSCO v3 with `basidiomycota_odb9`.
+
+The other assemblers, on the two *Melampsora* genomes: HiCanu + NuclearPhaser came close behind (correct
 haplotype sizes, N50 3–25% lower, and ~70–90 gaps per haplotype); Verkko + NuclearPhaser was
 more fragmented and produced one probable misjoin on *M. allii-populina*; Flye's primary was
 collapsed on *M. larici-populina* and ~30 Mb short per haplotype on *M. allii-populina*; IPA
 was the weakest (QV 40–44, and phase-switched beyond what NuclearPhaser could separate).
+The same ordering held on *P. triticina*, where Flye failed outright: its two NuclearPhaser
+haplotypes came to 81 and 84 Mb against an expected ~123 Mb, with under half the sequence in
+chromosome-scale scaffolds.
 
 ---
 
@@ -484,6 +507,7 @@ Every one of these cost a real run.
 | `slurm` / `apptainer` | Building blocks for your own site profile |
 | `mlp` | Dataset: *Melampsora larici-populina* 98AG31, full validation run from ENA |
 | `map` | Dataset: *Melampsora allii-populina* 12AY07, full validation run from ENA |
+| `pt` | Dataset: *Puccinia triticina* 19NSW04, full validation run from ENA |
 | `test` | Smoke test on subsampled reads, proves containers and DB binds |
 | `stub` | Wiring validation only, runs on one core |
 | `robust` | Failure isolation for long unattended runs. **Always check the trace afterwards**. It converts failures into gaps |
@@ -516,7 +540,7 @@ conf/
   apptainer.config       container runtime settings
   slurm.config           generic SLURM execution
   gruffalo.config        SITE example: cluster paths, queues, caches, bad nodes
-  mlp.config, map.config DATASET examples: the two validation genomes
+  mlp.config, map.config, pt.config DATASET examples: the validation genomes
   test.config            smoke test on subsampled reads
   stub.config            wiring validation only
   robust.config          failure isolation for unattended runs
@@ -533,7 +557,7 @@ docs/images/             metro map (metro_map.mmd, rendered with nf-metro)
 
 CI runs on every push: the config guard, then stub runs of the default and all-branches
 configurations on the oldest and newest supported Nextflow. Stub runs prove the wiring, not
-the tools; the `mlp`/`map` validation on real data is run by hand before each release.
+the tools; the `mlp`/`map`/`pt` validation on real data is run by hand before each release.
 
 ---
 
