@@ -68,7 +68,7 @@ Like nf-core pipelines, this runs without cloning. Nextflow fetches the reposito
 `~/.nextflow/assets/` and runs it from there:
 
 ```bash
-nextflow run rj-price/rust-assembler-nf -r v1.0.1 \
+nextflow run rj-price/rust-assembler-nf -r v1.0.2 \
     -profile <site> \
     --input samplesheet.csv --genome_size 525m --fcs_gx_taxid 5264 \
     --outdir results
@@ -142,7 +142,7 @@ This split is the main thing to understand before running it anywhere new.
 Combine them on the command line:
 
 ```bash
-nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile mlp,gruffalo --outdir results
+nextflow run rj-price/rust-assembler-nf -r v1.0.2 -profile mlp,gruffalo --outdir results
 ```
 
 ### Porting to another cluster
@@ -186,9 +186,9 @@ and on *Puccinia triticina* 19NSW04 from Sperschneider et al. (2023), *Nature Mi
 profiles reproduce these runs from public ENA data:
 
 ```bash
-nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile mlp,<site> --outdir mlp_results
-nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile map,<site> --outdir map_results
-nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile pt,<site> --outdir pt_results
+nextflow run rj-price/rust-assembler-nf -r v1.0.2 -profile mlp,<site> --outdir mlp_results
+nextflow run rj-price/rust-assembler-nf -r v1.0.2 -profile map,<site> --outdir map_results
+nextflow run rj-price/rust-assembler-nf -r v1.0.2 -profile pt,<site> --outdir pt_results
 ```
 
 hifiasm's Hi-C haplotypes against the published H0/H1, after YaHS scaffolding. The full
@@ -295,7 +295,7 @@ No architectural change needed. Supply both reads and hifiasm switches to fully-
 output:
 
 ```bash
-nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile <site> \
+nextflow run rj-price/rust-assembler-nf -r v1.0.2 -profile <site> \
     --input samplesheet.csv --genome_size 525m --fcs_gx_taxid <taxid> \
     --hic_r1 R1.fq.gz --hic_r2 R2.fq.gz
 ```
@@ -311,7 +311,7 @@ Hi-C library applies to every candidate. It was designed on dikaryotic rusts, wh
 precisely this case.
 
 ```bash
-nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile <site> ... \
+nextflow run rj-price/rust-assembler-nf -r v1.0.2 -profile <site> ... \
     --hic_r1 R1.fq.gz --hic_r2 R2.fq.gz \
     --run_nuclearphaser --nuclearphaser_genes genes.fa \
     --nuclearphaser_sif nuclearphaser.sif
@@ -344,7 +344,7 @@ Phasing says *which nucleus* a contig belongs to. Scaffolding says *where in tha
 sits, and it is what makes a scaffold N50 comparable with published assemblies.
 
 ```bash
-nextflow run rj-price/rust-assembler-nf -r v1.0.1 -profile <site> ... \
+nextflow run rj-price/rust-assembler-nf -r v1.0.2 -profile <site> ... \
     --hic_r1 R1.fq.gz --hic_r2 R2.fq.gz --run_scaffolding
 ```
 
