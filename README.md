@@ -37,14 +37,14 @@ defaults actively work against you here:
   <img alt="rust-assembler-nf metro map" src="docs/images/metro_map_light.png">
 </picture>
 
-Optional stages (Verkko, mito screen, Phasing, Scaffolding) are off by default; orange routes need Hi-C reads. The map is drawn with [nf-metro](https://github.com/seqeralabs/nf-metro) from `docs/images/metro_map.mmd`.
+Optional stages (IPA, Verkko, mito screen, Phasing, Scaffolding) are off by default; orange routes need Hi-C reads. The map is drawn with [nf-metro](https://github.com/seqeralabs/nf-metro) from `docs/images/metro_map.mmd`.
 
 | Stage | Tools | Notes |
 |---|---|---|
 | Read QC | seqkit, NanoPlot | Per-run and combined. **No filtering by default.** |
 | k-mer analysis | meryl, GenomeScope2, smudgeplot | Before assembly; smudgeplot cross-checks the diploid model |
 | Contamination (reads) | Kraken2, minimap2 | Reports only. Nothing is discarded automatically |
-| Assembly | hifiasm, Flye, HiCanu, IPA, (Verkko) | Independent approaches; assembly graphs retained |
+| Assembly | hifiasm, Flye, HiCanu, (IPA, Verkko) | Independent approaches; assembly graphs retained |
 | Contamination (assembly) | FCS-GX | Post-assembly. More reliable than read-level |
 | Assembly cleanup | `fcs_gx_clean.py` | Acts on FCS-GX's EXCLUDE/TRIM calls, writing a *new* cleaned FASTA |
 | Mitochondrion | BLASTn + `mito_screen.py` | Off by default. Removes the mitochondrion, which FCS-GX cannot see |
@@ -58,8 +58,8 @@ Optional stages (Verkko, mito screen, Phasing, Scaffolding) are off by default; 
 ## Quick start
 
 Requires Nextflow ≥24.04 (tested on 24.04, 25.04 and 26.04) and Apptainer. Almost every tool comes from a pinned biocontainer.
-Three have no usable public image and are built once from the bundled definitions: IPA (on by
-default), NuclearPhaser and HapHiC (only when their branch is used). See
+Three have no usable public image and are built once from the bundled definitions: IPA,
+NuclearPhaser and HapHiC, each needed only when its branch is switched on. See
 [Locally built containers](#locally-built-containers).
 
 ### Running straight from GitHub
@@ -90,7 +90,7 @@ git clone https://github.com/rj-price/rust-assembler-nf.git && cd rust-assembler
 
 # 1. Validate the wiring (seconds, no compute, no containers)
 nextflow run . --input assets/samplesheet.csv --genome_size 500m \
-    --run_kraken2 false --run_busco false --run_fcs_gx false --run_ipa false \
+    --run_kraken2 false --run_busco false --run_fcs_gx false \
     -profile stub -stub-run
 
 # 2. Smoke test on a subsample (proves containers, DB binds, offline BUSCO)
@@ -122,8 +122,8 @@ rust,run2,/path/to/hifi_run2.fastq.gz
 | `--fcs_gx_taxid` | NCBI taxid of your species. FCS-GX is on by default; or set `--run_fcs_gx false` |
 | `--outdir` | Where results go. Defaults to `./results` |
 
-Database and image locations (`--kraken_db`, `--busco_db`, `--fcs_gx_db`, `--fcs_gx_sif`,
-`--ipa_sif`) have no portable default. Supply them via a site profile, pass them on the
+Database and image locations (`--kraken_db`, `--busco_db`, `--fcs_gx_db`, `--fcs_gx_sif`)
+have no portable default. Supply them via a site profile, pass them on the
 command line, or disable the tool. `nextflow run rj-price/rust-assembler-nf --help` lists
 every option.
 
@@ -152,7 +152,7 @@ profile block in `nextflow.config` (or keep it outside the repo and pass it with
 else needs editing. On gruffalo itself every path is derived from `$USER` and `$SCRATCH`, so a
 second user there needs no changes at all.
 
-Set at minimum: `kraken_db`, `busco_db`, `fcs_gx_db`, `fcs_gx_sif`, `ipa_sif`,
+Set at minimum: `kraken_db`, `busco_db`, `fcs_gx_db`, `fcs_gx_sif`,
 `apptainer_cache`, `container_binds` (bind mounts for anything outside the work directory),
 `workDir`, and, if your scheduler needs it, `process.queue`. The generic `slurm` and
 `apptainer` profiles are the building blocks.
@@ -172,8 +172,8 @@ apptainer build haphic.sif        containers/haphic.def         # --haphic_sif
 ```
 
 Each definition pins its upstream commit and explains why no stock image works. Point the
-matching parameter at the result, ideally from your site profile. `--run_ipa false` removes
-the only one needed for a default run.
+matching parameter at the result, ideally from your site profile. A default run needs none
+of them.
 
 ---
 

@@ -62,10 +62,9 @@ jobs:
         run: |
           ARGS=(--input ci/samplesheet.csv --outdir ci/out --genome_size 500m
                 --kraken_db ci/db/kraken --busco_db ci/db/busco
-                --fcs_gx_db ci/db/fcs --fcs_gx_sif ci/fcs.sif --fcs_gx_taxid 5264
-                --ipa_sif ci/ipa.sif)
+                --fcs_gx_db ci/db/fcs --fcs_gx_sif ci/fcs.sif --fcs_gx_taxid 5264)
           if [[ "${{ matrix.branches }}" == all ]]; then
-            ARGS+=(--run_verkko true --subset_assemblies
+            ARGS+=(--run_verkko true --run_ipa true --ipa_sif ci/ipa.sif --subset_assemblies
                    --hic_r1 ci/hic_1.fq.gz --hic_r2 ci/hic_2.fq.gz
                    --run_nuclearphaser --nuclearphaser_genes ci/genes.fa --nuclearphaser_sif ci/np.sif
                    --run_scaffolding --run_mito_screen --mito_reference ci/mito.fa)

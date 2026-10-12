@@ -43,7 +43,7 @@ def helpMessage() {
       --assembler_genome_size  Size given to Flye/HiCanu; defaults to --genome_size
       --read_yield_bases       Total sequenced bases; enables expected-depth scoring
       --run_hifiasm/_flye/_hicanu/_ipa/_verkko
-                               Which assemblers to run [verkko off, rest on]
+                               Which assemblers to run [ipa and verkko off, rest on]
       --ipa_sif                Locally built IPA image (containers/ipa.def), needed with --run_ipa
       --subset_assemblies      Diagnostic ALL/run1/run2 hifiasm comparison [${params.subset_assemblies}]
       --qc_only                Re-run QC + reporting over existing assemblies, no rebuild
