@@ -88,8 +88,8 @@ nextflow run rj-price/rust-assembler-nf -r v1.0.1 \
 ```bash
 git clone https://github.com/rj-price/rust-assembler-nf.git && cd rust-assembler-nf
 
-# 1. Validate the wiring (seconds, no compute, no containers)
-nextflow run . --input assets/samplesheet.csv --genome_size 500m \
+# 1. Validate the wiring (seconds, no compute, no containers; the FASTQs are empty placeholders)
+nextflow run . --input assets/samplesheet_stub.csv --genome_size 500m \
     --run_kraken2 false --run_busco false --run_fcs_gx false \
     -profile stub -stub-run
 
