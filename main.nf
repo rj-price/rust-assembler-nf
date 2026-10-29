@@ -554,116 +554,114 @@ workflow {
             ASSEMBLY_QC.out.for_multiqc.mix(ch_scaffold_mqc).collect(),
             ch_versions.unique().collectFile(name: 'collated_versions.yml')
         )
+    } else {
+        //
+        // STAGE: read QC. No filtering by default (DECISION D2).
+        //
+        READ_QC(ch_reads_per_run)
+        ch_versions = ch_versions.mix(READ_QC.out.versions)
 
-        return
+        //
+        // STAGE: k-mer analysis. Runs before assembly because hifiasm's coverage-based
+        // homozygous/heterozygous decisions are exactly what goes wrong on an odd genome.
+        //
+        KMER_ANALYSIS(ch_reads_combined)
+        ch_versions = ch_versions.mix(KMER_ANALYSIS.out.versions)
+
+        //
+        // STAGE: read-level contamination. Assessed, never silently acted on.
+        //
+        CONTAMINATION(ch_reads_combined)
+        ch_versions = ch_versions.mix(CONTAMINATION.out.versions)
+
+        //
+        // Derived datasets that are worth assembling in their own right. Both are empty unless
+        // explicitly asked for, and both exist to make a question answerable rather than assumed:
+        //
+        //   host_filtered  did removing apparent host contamination actually improve anything?
+        //   filtered       did the quality/length filter actually improve anything?
+        //
+        // Neither replaces the raw `all` readset — they are assembled ALONGSIDE it, which is the
+        // only arrangement in which the comparison means anything (DECISION D6).
+        //
+        ch_extra_readsets = Channel.empty()
+
+        if (params.host_filtered_assembly) {
+            ch_extra_readsets = ch_extra_readsets.mix(CONTAMINATION.out.host_filtered_reads)
+        }
+        if (params.filtered_assembly) {
+            ch_extra_readsets = ch_extra_readsets.mix(READ_QC.out.filtered_combined)
+        }
+
+        //
+        // STAGE: assembly. Each assembler is an independent, separately-cacheable process.
+        //
+        ASSEMBLY(ch_reads_combined, ch_reads_per_run, ch_extra_readsets)
+        ch_versions = ch_versions.mix(ASSEMBLY.out.versions)
+
+        //
+        // STAGE: assembly QC. Consumes the ASSEMBLIES channel blind to provenance, so any new
+        // assembler (or Hi-C haplotype) inherits the full QC suite for free.
+        //
+        // Per-sample yields, folded into one map so ASSEMBLY_QC can look up each assembly's
+        // own sample. reduce() gives a value channel, which combine() broadcasts rather than
+        // consumes, and ifEmpty keeps the lookup total if SEQKIT_STATS produced nothing.
+        ch_yield_map = READ_QC.out.sample_yield
+            .map { sample, bases -> [ (sample): bases ] }
+            .reduce([:]) { acc, entry -> acc + entry }
+            .ifEmpty([:])
+
+        ASSEMBLY_QC(
+            ASSEMBLY.out.assemblies,
+            ch_reads_combined,
+            KMER_ANALYSIS.out.meryl_db,
+            ch_yield_map
+        )
+        ch_versions = ch_versions.mix(ASSEMBLY_QC.out.versions)
+
+        //
+        // STAGE: Hi-C phasing of the finished assemblies. Unlike hifiasm's --h1/--h2, this
+        // applies to every assembler's output. Inert unless --run_nuclearphaser.
+        //
+        ch_np_haplotypes = Channel.empty()
+        if (params.run_nuclearphaser) {
+            PHASING(ASSEMBLY_QC.out.cleaned, ASSEMBLY_QC.out.busco_tables, ASSEMBLY_QC.out.gfastats)
+            ch_versions = ch_versions.mix(PHASING.out.versions)
+            ch_np_haplotypes = PHASING.out.haplotypes
+        }
+
+        //
+        // STAGE: Hi-C scaffolding of the phased haplotypes. Contigs -> chromosomes; no new
+        // sequence, only order and orientation. Independent of --run_nuclearphaser, because
+        // hifiasm's --h1/--h2 haplotypes are already phased. Inert unless --run_scaffolding.
+        //
+        ch_scaffold_mqc = Channel.empty()
+        if (params.run_scaffolding) {
+            SCAFFOLDING(ASSEMBLY_QC.out.cleaned, ch_np_haplotypes)
+            ch_versions = ch_versions.mix(SCAFFOLDING.out.versions)
+            ch_scaffold_mqc = SCAFFOLDING.out.mqc
+        }
+
+        //
+        // STAGE: reporting. Machine-readable summaries for automated comparison.
+        //
+        // Read-level contamination and the k-mer genome model are included here deliberately:
+        // both were previously computed, written to disk, and then absent from the report, which
+        // made the two things every size judgement is scored against the two things a reader had
+        // to go hunting for. Kraken2's report needs no conversion — MultiQC parses it natively.
+        //
+        ch_multiqc = READ_QC.out.for_multiqc
+            .mix(KMER_ANALYSIS.out.for_multiqc)
+            .mix(CONTAMINATION.out.for_multiqc)
+            .mix(ASSEMBLY_QC.out.for_multiqc)
+            .mix(ch_scaffold_mqc)
+
+        REPORTING(
+            ASSEMBLY_QC.out.for_summary,
+            ASSEMBLY_QC.out.depth_hists,
+            ASSEMBLY_QC.out.expected_depths,
+            ch_multiqc.collect(),
+            ch_versions.unique().collectFile(name: 'collated_versions.yml')
+        )
     }
-
-    //
-    // STAGE: read QC. No filtering by default (DECISION D2).
-    //
-    READ_QC(ch_reads_per_run)
-    ch_versions = ch_versions.mix(READ_QC.out.versions)
-
-    //
-    // STAGE: k-mer analysis. Runs before assembly because hifiasm's coverage-based
-    // homozygous/heterozygous decisions are exactly what goes wrong on an odd genome.
-    //
-    KMER_ANALYSIS(ch_reads_combined)
-    ch_versions = ch_versions.mix(KMER_ANALYSIS.out.versions)
-
-    //
-    // STAGE: read-level contamination. Assessed, never silently acted on.
-    //
-    CONTAMINATION(ch_reads_combined)
-    ch_versions = ch_versions.mix(CONTAMINATION.out.versions)
-
-    //
-    // Derived datasets that are worth assembling in their own right. Both are empty unless
-    // explicitly asked for, and both exist to make a question answerable rather than assumed:
-    //
-    //   host_filtered  did removing apparent host contamination actually improve anything?
-    //   filtered       did the quality/length filter actually improve anything?
-    //
-    // Neither replaces the raw `all` readset — they are assembled ALONGSIDE it, which is the
-    // only arrangement in which the comparison means anything (DECISION D6).
-    //
-    ch_extra_readsets = Channel.empty()
-
-    if (params.host_filtered_assembly) {
-        ch_extra_readsets = ch_extra_readsets.mix(CONTAMINATION.out.host_filtered_reads)
-    }
-    if (params.filtered_assembly) {
-        ch_extra_readsets = ch_extra_readsets.mix(READ_QC.out.filtered_combined)
-    }
-
-    //
-    // STAGE: assembly. Each assembler is an independent, separately-cacheable process.
-    //
-    ASSEMBLY(ch_reads_combined, ch_reads_per_run, ch_extra_readsets)
-    ch_versions = ch_versions.mix(ASSEMBLY.out.versions)
-
-    //
-    // STAGE: assembly QC. Consumes the ASSEMBLIES channel blind to provenance, so any new
-    // assembler (or Hi-C haplotype) inherits the full QC suite for free.
-    //
-    // Per-sample yields, folded into one map so ASSEMBLY_QC can look up each assembly's
-    // own sample. reduce() gives a value channel, which combine() broadcasts rather than
-    // consumes, and ifEmpty keeps the lookup total if SEQKIT_STATS produced nothing.
-    ch_yield_map = READ_QC.out.sample_yield
-        .map { sample, bases -> [ (sample): bases ] }
-        .reduce([:]) { acc, entry -> acc + entry }
-        .ifEmpty([:])
-
-    ASSEMBLY_QC(
-        ASSEMBLY.out.assemblies,
-        ch_reads_combined,
-        KMER_ANALYSIS.out.meryl_db,
-        ch_yield_map
-    )
-    ch_versions = ch_versions.mix(ASSEMBLY_QC.out.versions)
-
-    //
-    // STAGE: Hi-C phasing of the finished assemblies. Unlike hifiasm's --h1/--h2, this
-    // applies to every assembler's output. Inert unless --run_nuclearphaser.
-    //
-    ch_np_haplotypes = Channel.empty()
-    if (params.run_nuclearphaser) {
-        PHASING(ASSEMBLY_QC.out.cleaned, ASSEMBLY_QC.out.busco_tables, ASSEMBLY_QC.out.gfastats)
-        ch_versions = ch_versions.mix(PHASING.out.versions)
-        ch_np_haplotypes = PHASING.out.haplotypes
-    }
-
-    //
-    // STAGE: Hi-C scaffolding of the phased haplotypes. Contigs -> chromosomes; no new
-    // sequence, only order and orientation. Independent of --run_nuclearphaser, because
-    // hifiasm's --h1/--h2 haplotypes are already phased. Inert unless --run_scaffolding.
-    //
-    ch_scaffold_mqc = Channel.empty()
-    if (params.run_scaffolding) {
-        SCAFFOLDING(ASSEMBLY_QC.out.cleaned, ch_np_haplotypes)
-        ch_versions = ch_versions.mix(SCAFFOLDING.out.versions)
-        ch_scaffold_mqc = SCAFFOLDING.out.mqc
-    }
-
-    //
-    // STAGE: reporting. Machine-readable summaries for automated comparison.
-    //
-    // Read-level contamination and the k-mer genome model are included here deliberately:
-    // both were previously computed, written to disk, and then absent from the report, which
-    // made the two things every size judgement is scored against the two things a reader had
-    // to go hunting for. Kraken2's report needs no conversion — MultiQC parses it natively.
-    //
-    ch_multiqc = READ_QC.out.for_multiqc
-        .mix(KMER_ANALYSIS.out.for_multiqc)
-        .mix(CONTAMINATION.out.for_multiqc)
-        .mix(ASSEMBLY_QC.out.for_multiqc)
-        .mix(ch_scaffold_mqc)
-
-    REPORTING(
-        ASSEMBLY_QC.out.for_summary,
-        ASSEMBLY_QC.out.depth_hists,
-        ASSEMBLY_QC.out.expected_depths,
-        ch_multiqc.collect(),
-        ch_versions.unique().collectFile(name: 'collated_versions.yml')
-    )
 }
