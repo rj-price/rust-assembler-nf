@@ -3,6 +3,7 @@
 [![CI](https://github.com/rj-price/rust-assembler-nf/actions/workflows/ci.yml/badge.svg)](https://github.com/rj-price/rust-assembler-nf/actions/workflows/ci.yml)
 [![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A524.04.0-brightgreen.svg)](https://www.nextflow.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23881385.svg)](https://doi.org/10.5281/zenodo.23881385)
 
 Phased assembly and haplotype resolution of **dikaryotic rust (Pucciniales) genomes** from
 PacBio HiFi reads, with optional Hi-C phasing and scaffolding.
@@ -567,6 +568,13 @@ MIT, see [LICENSE](LICENSE).
 
 ## Citation
 
-If you use this pipeline, please cite the tools it runs (listed in each run's
+If you use this pipeline, please cite it:
+
+> Price, J. (2026). *rust-assembler-nf*. Zenodo. https://doi.org/10.5281/zenodo.23881385
+
+This DOI always resolves to the latest release. Each release also has its own DOI, listed on
+the [Zenodo record](https://doi.org/10.5281/zenodo.23881385), if you need to cite the exact version you ran.
+
+Please also cite the tools it runs (listed in each run's
 `versions.yml`), and Duplessis et al. (2026) for the phasing and mitochondrial-screening
 methods it follows.
